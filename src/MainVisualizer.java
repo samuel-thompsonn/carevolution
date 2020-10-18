@@ -13,10 +13,9 @@ import java.util.List;
 
 public class MainVisualizer extends Application {
 
-  public static final double TURN_DEGREES_PER_SECOND = 250;
-  public static final int ROUND_DURATION = 10;
-  public static final int GENERATION_SIZE = 100;
-  public static final double PROPORTION_ELIMINATED = 0.80;
+  public static final double TURN_DEGREES_PER_SECOND = 500;
+  public static final int GENERATION_SIZE = 20;
+  public static final double PROPORTION_ELIMINATED = 0.90;
   public static final double STEPS_PER_SECOND = 120;
   public static final int SCENE_WIDTH = 1200;
   public static final int SCENE_HEIGHT = 1000;
@@ -34,6 +33,7 @@ public class MainVisualizer extends Application {
   private boolean pressingForward;
   private boolean pressingLeft;
   private boolean pressingRight;
+  private int myRoundDuration = 10;
 
   @Override
   public void start(Stage primaryStage) {
@@ -47,19 +47,12 @@ public class MainVisualizer extends Application {
     myRoot.getChildren().add(myCar);
     myRoot.getChildren().add(myCarRoot);
     myCars.add(myCar);
-    myControllers = new ArrayList<>();
-    for (int i = 0; i < GENERATION_SIZE; i ++) {
-      CarVisualizer autoCar = new CarVisualizer(400,200);
-      myCarRoot.getChildren().add(autoCar);
-      myCars.add(autoCar);
-      CarController autoController = new NeuralCarController(autoCar);
-      myControllers.add(autoController);
-    }
+    myControllers = initializeControllers();
     Scene mainScene = new Scene(myRoot, SCENE_WIDTH, SCENE_HEIGHT);
     mainScene.setOnMouseMoved(event -> {
       reactWithLine(event.getSceneX(),event.getSceneY());});
     mainScene.setOnScroll(event -> rotateLine(event.getDeltaY() / -800));
-    myScorer = new DistanceCarScorer();
+    myScorer = new DistanceScorer();
 
     mainScene.setOnKeyPressed(event -> {
       if (event.getCode().equals(KeyCode.W)) {
@@ -74,6 +67,23 @@ public class MainVisualizer extends Application {
       if (event.getCode().equals(KeyCode.SPACE)) {
         clearObstacles();
       }
+      if (event.getCode().equals(KeyCode.C)) {
+        restartSimulation();
+      }
+      if (event.getCode().equals(KeyCode.J)) {
+        setFinderVisibility(true);
+      }
+      if (event.getCode().equals(KeyCode.O)) {
+        myRoundDuration += 5;
+      }
+      if (event.getCode().equals(KeyCode.P)) {
+        if (myRoundDuration > 7.5) {
+          myRoundDuration -= 5;
+        }
+      }
+      if (event.getCode().equals(KeyCode.ENTER)) {
+        startNewRound();
+      }
     });
     mainScene.setOnKeyReleased(event -> {
       if (event.getCode().equals(KeyCode.W)) {
@@ -84,6 +94,9 @@ public class MainVisualizer extends Application {
       }
       if (event.getCode().equals(KeyCode.D)) {
         pressingRight = false;
+      }
+      if (event.getCode().equals(KeyCode.J)) {
+        setFinderVisibility(false);
       }
     });
     mainScene.setOnMouseClicked(event -> placeObstacle(event.getSceneX(),event.getSceneY(),75,75));
@@ -100,7 +113,19 @@ public class MainVisualizer extends Application {
     myObstacles = new ArrayList<>();
     myObstacleRoot = new Group();
     myRoot.getChildren().add(myObstacleRoot);
-    placeObstacle(400+250,300-100,100,100);
+  }
+
+  //TODO: Address the fact that this is a state modifying function with a return value.
+  private List<CarController> initializeControllers() {
+    List<CarController> controllers = new ArrayList<>();
+    for (int i = 0; i < GENERATION_SIZE; i ++) {
+      CarVisualizer autoCar = new CarVisualizer(400,300);
+      myCarRoot.getChildren().add(autoCar);
+      myCars.add(autoCar);
+      CarController autoController = new NeuralCarController(autoCar);
+      controllers.add(autoController);
+    }
+    return controllers;
   }
 
   private void placeObstacle(double xPos, double yPos, double width, double height) {
@@ -113,6 +138,13 @@ public class MainVisualizer extends Application {
     myObstacles = new ArrayList<>();
     myObstacleRoot.getChildren().clear();
   }
+
+  private void setFinderVisibility(boolean show) {
+    for (CarVisualizer car : myCars) {
+      car.showFinders(show);
+    }
+  }
+
 
   private void update(double elapsedSeconds) {
     myCar.pressPedal(0.0);
@@ -146,7 +178,7 @@ public class MainVisualizer extends Application {
       myCars.remove(deadCar);
     }
     currentSimTime += elapsedSeconds;
-    if (currentSimTime >= ROUND_DURATION) {
+    if (currentSimTime >= myRoundDuration) {
       startNewRound();
     }
   }
@@ -186,6 +218,14 @@ public class MainVisualizer extends Application {
       auto.addToScore();
       auto.manipulateCar(elapsedSeconds);
     }
+  }
+
+  private void restartSimulation() {
+    currentSimTime = 0;
+    myCars.clear();
+    myCarRoot.getChildren().clear();
+    myCars.add(myCar);
+    myControllers = initializeControllers();
   }
 
   private void reactWithLine(double x, double y) {

@@ -17,6 +17,7 @@ public class DistanceFinder extends Parent {
   public DistanceFinder(double x, double y, double length, double xDir, double yDir) {
     myLine = new Line();
     getChildren().add(myLine);
+    myDistance = length;
     myDistanceDisplay = new Text("0");
     myDistanceDisplay.setX(myX);
     myDistanceDisplay.setY(myY + 50);
@@ -80,15 +81,14 @@ public class DistanceFinder extends Parent {
     double targetX = myX + (currentDistance * myXDirection);
     double targetY = myY + (currentDistance * myYDirection);
 
-    boolean collidingWithObstacle = (targetX < minX || targetX > maxX || targetY < minY || targetY > maxY);
+    //If we are colliding with an obstacle, we must go closer
+    if (targetX < minX || targetX > maxX || targetY < minY || targetY > maxY) {
+      return findDistance(minDistance, currentDistance, minX,minY,maxX,maxY, obstacles);
+    }
     for (ImpassableRegion obstacle: obstacles) {
       if (obstacle.pointInBounds(targetX, targetY)) {
-        collidingWithObstacle = true;
+        return findDistance(minDistance, currentDistance, minX,minY,maxX,maxY, obstacles);
       }
-    }
-    //If we are colliding with an obstacle, we must go closer
-    if (collidingWithObstacle) {
-      return findDistance(minDistance, currentDistance, minX,minY,maxX,maxY, obstacles);
     }
     //If we are not colliding with an obstacle, we could go closer OR farther.
     //If there's an obstacle closer, return that one.
@@ -112,8 +112,8 @@ public class DistanceFinder extends Parent {
   private void refreshLine() {
     myLine.setStartX(myX);
     myLine.setStartY(myY);
-    myLine.setEndX(myX + (myLength * myXDirection));
-    myLine.setEndY(myY + (myLength * myYDirection));
+    myLine.setEndX(myX + (myDistance * myXDirection));
+    myLine.setEndY(myY + (myDistance * myYDirection));
   }
 
 }

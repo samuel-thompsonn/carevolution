@@ -1,3 +1,4 @@
+import javafx.scene.Group;
 import javafx.scene.Parent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
@@ -9,11 +10,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class CarVisualizer extends Parent {
-  public static final double MAX_WHEEL_ROTATION = 60.0;
+  public static final double MAX_WHEEL_ROTATION = 40;
   public static final double FRICTION_FACTOR = 0.01;
   public static final double MAX_ACCELERATION = 10;
   public static final double CAR_RADIUS = 10.0;
-  public static final int SENSOR_LENGTH = 800;
+  public static final int SENSOR_LENGTH = 300;
+  public static final int CAR_LENGTH = 50;
+  public static final int CAR_WIDTH = 25;
   private double myX;
   private double myY;
   private double myRotation;
@@ -26,12 +29,14 @@ public class CarVisualizer extends Parent {
   private List<DistanceFinder> myDistanceFinders;
   private DistanceFinder myForwardFinder;
   private DistanceFinder myLeftFinder;
+  private DistanceFinder myForwardLeftFinder;
   private DistanceFinder myRightFinder;
+  private DistanceFinder myForwardRightFinder;
   private List<CarListener> myListeners;
+  private boolean showingFinders;
+  private Group myDistanceFinderRoot;
 
   public CarVisualizer(double x, double y) {
-    myX = x;
-    myY = y;
     myRotation = 0;
     try {
       InputStream stream = new FileInputStream("resources/yellowcar.png");
@@ -39,22 +44,37 @@ public class CarVisualizer extends Parent {
     } catch (FileNotFoundException e) {
       e.printStackTrace();
     }
-    myCarImage.setX(x);
-    myCarImage.setY(y);
-    myCarImage.setFitWidth(50);
-    myCarImage.setFitHeight(25);
+    myCarImage.setFitWidth(CAR_LENGTH);
+    myCarImage.setFitHeight(CAR_WIDTH);
     getChildren().add(myCarImage);
     myDistanceFinders = new ArrayList<>();
     myForwardFinder = (new DistanceFinder(myX,myY, SENSOR_LENGTH,myXDirection,myYDirection));
     myLeftFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(90.0),delayedYDirection(90.0));
+    myForwardLeftFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(45.0),delayedYDirection(45.0));
     myRightFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(-90.0),delayedYDirection(-90.0));
+    myForwardRightFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(-45.0),delayedYDirection(-45.0));
     myDistanceFinders.add(myForwardFinder);
     myDistanceFinders.add(myRightFinder);
+    myDistanceFinders.add(myForwardRightFinder);
     myDistanceFinders.add(myLeftFinder);
+    myDistanceFinders.add(myForwardLeftFinder);
+    showingFinders = false;
+    myDistanceFinderRoot = new Group();
     for (DistanceFinder finder : myDistanceFinders) {
-    //  getChildren().add(finder);
+      myDistanceFinderRoot.getChildren().add(finder);
     }
     myListeners = new ArrayList<>();
+    setPosition(x,y);
+  }
+
+  public void showFinders(boolean show) {
+    if (show && !showingFinders) {
+      getChildren().add(myDistanceFinderRoot);
+    }
+    if (!show && showingFinders) {
+      getChildren().remove(myDistanceFinderRoot);
+    }
+    showingFinders = show;
   }
 
   public void pressPedal(double pressAmount) {
@@ -117,8 +137,10 @@ public class CarVisualizer extends Parent {
   public void setPosition(double xPos, double yPos) {
     myX = xPos;
     myY = yPos;
-    myCarImage.setX(myX);
-    myCarImage.setY(myY);
+    double middleX = myX - (CAR_LENGTH * 0.5);
+    double middleY = myY - (CAR_WIDTH * 0.5);
+    myCarImage.setX(middleX);
+    myCarImage.setY(middleY);
     for (DistanceFinder finder : myDistanceFinders) {
       finder.setPosition(myX,myY);
     }
@@ -140,8 +162,16 @@ public class CarVisualizer extends Parent {
     return myLeftFinder.getDistance();
   }
 
+  public double getForwardLeftDistance() {
+    return myForwardLeftFinder.getDistance();
+  }
+
   public double getRightDistance() {
     return myRightFinder.getDistance();
+  }
+
+  public double getForwardRightDistance() {
+    return myForwardRightFinder.getDistance();
   }
 
   public double getSpeed() {
@@ -163,7 +193,9 @@ public class CarVisualizer extends Parent {
     myCarImage.setRotate(myRotation);
     myForwardFinder.setDirection(myXDirection,myYDirection);
     myRightFinder.setDirection(delayedXDirection(90.0),delayedYDirection(90.0));
+    myForwardRightFinder.setDirection(delayedXDirection(45.0),delayedYDirection(45.0));
     myLeftFinder.setDirection(delayedXDirection(-90.0),delayedYDirection(-90.0));
+    myForwardLeftFinder.setDirection(delayedXDirection(-45.0),delayedYDirection(-45.0));
   }
 
   private double delayedXDirection(double delayAngleDegrees) {

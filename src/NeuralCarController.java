@@ -4,15 +4,16 @@ import java.util.Random;
 
 public class NeuralCarController implements CarController{
 
-  public static final int WHEEL_TURN_PER_SECOND = 90;
+  public static final int WHEEL_TURN_PER_SECOND = 240;
   private List<double[][]> myWeights;
   private CarVisualizer myCar;
   private double myScore;
+  private NeuronBehavior myNeuronBehavior = new SigmoidBehavior();
 
   public NeuralCarController(CarVisualizer car) {
     myCar = car;
     myCar.subscribe(this);
-    myWeights = initializeWeights(new int[]{8,7,7},6,3);
+    myWeights = initRandomWeights(new int[]{8,7},6,3);
   }
 
   private NeuralCarController(CarVisualizer car, List<double[][]> parentWeights) {
@@ -42,7 +43,7 @@ public class NeuralCarController implements CarController{
     return returnedWeights;
   }
 
-  private List<double[][]> initializeWeights(int[] layerSizes, int numInputs, int numOutputs) {
+  private List<double[][]> initRandomWeights(int[] layerSizes, int numInputs, int numOutputs) {
     List<double[][]> returnedList = new ArrayList<>();
     int prevLayerSize = numInputs;
     int[] allLayers = new int[layerSizes.length+1];
@@ -84,12 +85,22 @@ public class NeuralCarController implements CarController{
     readCarParams();
     double[] actions = calculateMovements(readCarParams());
     myCar.pressPedal(actions[0]);
-    if (actions[1] > 0) {
-      myCar.turnWheel(-WHEEL_TURN_PER_SECOND * elapsedTime);
-    }
-    if (actions[2] > 0) {
-      myCar.turnWheel(WHEEL_TURN_PER_SECOND * elapsedTime);
-    }
+    //myCar.turnWheel(WHEEL_TURN_PER_SECOND * elapsedTime * (actions[1]-0.5));
+
+    myCar.turnWheel(myCar.getWheelTurn() * -1);
+    myCar.turnWheel((actions[1]-0.5) * CarVisualizer.MAX_WHEEL_ROTATION * 55555);
+
+//    if (actions[1] > 0.5 && actions[2] <= 0.5) {
+//      myCar.turnWheel(-1000000);
+//      System.out.println("Neuron 1: active");
+//    }
+//    else if (actions[1] <= 0.5 && actions[2] > 0.5) {
+//      myCar.turnWheel(1000000);
+//      System.out.println("Neuron 2: active");
+//    }
+//    else {
+//      //System.out.printf("Neuron values: {%.02f, %.02f}\n",actions[1],actions[2]);
+//    }
   }
 
   @Override
@@ -99,11 +110,13 @@ public class NeuralCarController implements CarController{
 
   private double[] readCarParams() {
     return new double[]{
-            myCar.getPedalPress(),
-            myCar.getWheelTurn() / 120.0,
+            //myCar.getPedalPress(),
+            //myCar.getWheelTurn() / 120.0,
             myCar.getForwardDistance() / CarVisualizer.SENSOR_LENGTH,
             myCar.getLeftDistance() / CarVisualizer.SENSOR_LENGTH,
+            myCar.getForwardLeftDistance() / CarVisualizer.SENSOR_LENGTH,
             myCar.getRightDistance() / CarVisualizer.SENSOR_LENGTH,
+            myCar.getForwardRightDistance() / CarVisualizer.SENSOR_LENGTH,
             myCar.getSpeed() / 200.0
     };
   }
@@ -119,10 +132,7 @@ public class NeuralCarController implements CarController{
 
   private void applyNeuronThresholds(double[] layerResult) {
     for (int i = 0; i < layerResult.length; i ++) {
-      layerResult[i] = Math.max(layerResult[i],0);
-      if (layerResult[i] != 0) {
-        layerResult[i] = 1;
-      }
+      layerResult[i] = myNeuronBehavior.applyNeuronFunction(layerResult[i]);
     }
   }
 
