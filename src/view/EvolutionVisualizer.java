@@ -16,7 +16,7 @@ import java.util.List;
 
 public class EvolutionVisualizer extends Parent implements VisualizerListener, SimulationListener {
 
-  public static final double TURN_DEGREES_PER_SECOND = 500;
+  public static final double TURN_DEGREES_PER_SECOND = 200;
   public static final int GENERATION_SIZE = 20;
   public static final double PROPORTION_ELIMINATED = 0.50;
   public static final double STEPS_PER_SECOND = 120;
@@ -33,6 +33,7 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
   private boolean pressingForward;
   private boolean pressingLeft;
   private boolean pressingRight;
+  private boolean pressingBack;
   private int myRoundDuration = 10;
 
   public EvolutionVisualizer(CarSim simulation) {
@@ -46,7 +47,7 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
     myVisualizers = new ArrayList<>();
     Timeline timeline = new Timeline();
     timeline.getKeyFrames().add(new KeyFrame(Duration.seconds(1/ STEPS_PER_SECOND), event -> {
-      update(1/60.0);
+      update(1/STEPS_PER_SECOND);
     }));
     timeline.setCycleCount(Animation.INDEFINITE);
     timeline.play();
@@ -57,7 +58,6 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
     this.setOnScroll(event -> rotateLine(event.getDeltaY() / -800));
 
     this.setOnKeyPressed(event -> {
-      System.out.println("A KEY WAS PRESSED");
       if (event.getCode().equals(KeyCode.W)) {
         pressingForward = true;
       }
@@ -66,6 +66,9 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
       }
       if (event.getCode().equals(KeyCode.D)) {
         pressingRight = true;
+      }
+      if (event.getCode().equals(KeyCode.S)) {
+        pressingBack = true;
       }
       if (event.getCode().equals(KeyCode.SPACE)) {
         clearObstacles();
@@ -99,6 +102,9 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
       if (event.getCode().equals(KeyCode.D)) {
         pressingRight = false;
       }
+      if (event.getCode().equals(KeyCode.S)) {
+        pressingBack = false;
+      }
       if (event.getCode().equals(KeyCode.J)) {
         setFinderVisibility(false);
       }
@@ -116,6 +122,24 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
 
   private void update(double elapsedSeconds) {
     mySimulation.update(elapsedSeconds);
+    if (pressingForward) {
+      mySimulation.pressGasPedal(1.0);
+    }
+    else {
+      mySimulation.pressGasPedal(0.0);
+    }
+    if (pressingLeft) {
+      mySimulation.turnWheel(-TURN_DEGREES_PER_SECOND * elapsedSeconds);
+    }
+    if (pressingRight) {
+      mySimulation.turnWheel(TURN_DEGREES_PER_SECOND * elapsedSeconds);
+    }
+    if (pressingBack) {
+      mySimulation.hitBrakes(1.0);
+    }
+    else {
+      mySimulation.hitBrakes(0.0);
+    }
   }
 
   private void restartSimulation() {

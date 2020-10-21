@@ -10,6 +10,8 @@ public interface Car extends CollisionEntity {
 
   public void turnWheel(double turnDegrees);
 
+  public void pressBrakes(double pressAmount);
+
   /**
    *
    * @param deltaTime The number of seconds elapsed since the last update.
@@ -41,6 +43,14 @@ public interface Car extends CollisionEntity {
   public double getXPos();
 
   public double getYPos();
+
+  public double getBackXPos();
+
+  public double getBackYPos();
+
+  public double getFrontXPos();
+
+  public double getFrontYPos();
 
   public void destroy();
 }

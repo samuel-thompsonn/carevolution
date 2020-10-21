@@ -1,6 +1,7 @@
 package model;
 
 import model.carcontroller.CarController;
+import model.carcontroller.ManualCarController;
 import model.carcontroller.NeuralCarController;
 import model.carscorer.CarScorer;
 import model.carscorer.DistanceScorer;
@@ -14,13 +15,11 @@ import java.util.Random;
 
 public class EvolutionSim implements CarSim, CollisionEntityListener {
 
-  public static final double TURN_DEGREES_PER_SECOND = 500;
-  public static final double STEPS_PER_SECOND = 120;
   public static final int SCENE_WIDTH = 1200;
   public static final int SCENE_HEIGHT = 1000;
   public static final int CAR_START_X_RANGE = 1;
   public static final int CAR_START_Y_RANGE = 1;
-  public static final int CAR_X_OFFSET = 50;
+  public static final int CAR_X_OFFSET = 150;
   public static final int CAR_Y_OFFSET = 150;
   private List<Car> myCars;
   private List<CarController> myControllers;
@@ -71,7 +70,7 @@ public class EvolutionSim implements CarSim, CollisionEntityListener {
       myCars.add(autoCar);
       myCollisionEntities.add(autoCar);
       autoCar.subscribe(this);
-      CarController autoController = new NeuralCarController(autoCar);
+      CarController autoController = new ManualCarController(autoCar);
       myControllers.add(autoController);
     }
     System.out.println(myListeners.size());
@@ -209,5 +208,26 @@ public class EvolutionSim implements CarSim, CollisionEntityListener {
       car.destroy();
     }
     initializeControllers();
+  }
+
+  @Override
+  public void pressGasPedal(double amount) {
+    for (CarController controller : myControllers) {
+      controller.reactToGasPedal(amount);
+    }
+  }
+
+  @Override
+  public void turnWheel(double turnDegrees) {
+    for (CarController controller : myControllers) {
+      controller.reactToWheelTurn(turnDegrees);
+    }
+  }
+
+  @Override
+  public void hitBrakes(double amount) {
+    for (CarController controller : myControllers) {
+      controller.reactToBrakes(amount);
+    }
   }
 }

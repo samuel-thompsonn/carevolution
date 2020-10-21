@@ -4,6 +4,7 @@ import javafx.scene.Parent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
+import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
 import javafx.scene.shape.Rectangle;
 import model.CollisionEntity;
@@ -22,8 +23,8 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
   public static final double MAX_ACCELERATION = 10;
   public static final double CAR_RADIUS = 10.0;
   public static final int SENSOR_LENGTH = 300;
-  public static final int CAR_LENGTH = 50;
-  public static final int CAR_WIDTH = 25;
+  public static final double CAR_LENGTH = 50+35;
+  public static final double CAR_WIDTH = 25+12.5;
   private double myX;
   private double myY;
   private double myRotation;
@@ -38,6 +39,9 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
   private Line myRightForwardFinder;
   private Line myRightFinder;
   private List<Line> myFinderVisuals;
+  private Line myWheelRotateVisual;
+  private Circle myCarFront;
+  private Circle myCarBack;
 
   private boolean showingFinders;
 
@@ -57,12 +61,20 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
     myHitbox = new Rectangle(car.getCollisionX(),car.getCollisionY(), car.getCollisionWidth(),car.getCollisionHeight());
     myHitbox.setFill(Color.color(1.0,0.0,0.0,0.3));
     getChildren().add(myHitbox);
+    myWheelRotateVisual = new Line();
+    myWheelRotateVisual.setStroke(Color.RED);
+    getChildren().add(myWheelRotateVisual);
+    myCarFront = new Circle(CAR_WIDTH / 2.0);
+    myCarFront.setFill(Color.color(0.0,1.0,0.0,0.3));
+    myCarBack = new Circle(CAR_WIDTH / 2.0);
+    myCarBack.setFill(Color.color(0.0,1.0,0.0,0.3));
+    getChildren().addAll(myCarFront,myCarBack);
+
     myListeners = new ArrayList<>();
 
     showingFinders = false;
     car.subscribe(this);
     setPosition(car.getXPos(),car.getYPos());
-    refreshFinders();
   }
 
   private void initFinders() {
@@ -83,12 +95,20 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
   public void setPosition(double xPos, double yPos) {
     myX = xPos;
     myY = yPos;
-    double middleX = myX - (CAR_LENGTH * 0.5);
-    double middleY = myY - (CAR_WIDTH * 0.5);
+    double axleX = (myCar.getBackXPos() - myCar.getFrontXPos());
+    double axleY = (myCar.getBackYPos() - myCar.getFrontYPos());
+    double middleX = ((myCar.getBackXPos() + myCar.getFrontXPos()) / 2) - CAR_LENGTH / 2;
+    double middleY = ((myCar.getBackYPos() + myCar.getFrontYPos()) / 2) - CAR_WIDTH / 2;
+//    myCarImage.setX(myCar.getBackXPos());
+//    myCarImage.setY(myCar.getBackYPos());
     myCarImage.setX(middleX);
     myCarImage.setY(middleY);
     myHitbox.setX(xPos);
     myHitbox.setY(yPos);
+    myCarFront.setCenterX(myCar.getFrontXPos());
+    myCarFront.setCenterY(myCar.getFrontYPos());
+    myCarBack.setCenterX(myCar.getBackXPos());
+    myCarBack.setCenterY(myCar.getBackYPos());
     refreshFinders();
   }
 
@@ -121,14 +141,19 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
     myRightForwardFinder.setEndY(finderEndY(-45,myCar.getForwardRightDistance()));
     myRightFinder.setEndX(finderEndX(-90,myCar.getRightDistance()));
     myRightFinder.setEndY(finderEndY(-90,myCar.getRightDistance()));
+
+    myWheelRotateVisual.setStartX(myCar.getFrontXPos());
+    myWheelRotateVisual.setStartY(myCar.getFrontYPos());
+    myWheelRotateVisual.setEndX(finderEndX(myCar.getWheelTurn(),50));
+    myWheelRotateVisual.setEndY(finderEndY(myCar.getWheelTurn(),50));
   }
 
   private double finderEndX(double angleDiffDegrees, double length) {
-    return myX + (Math.cos(degreesToRadians(myRotation + angleDiffDegrees)) * length);
+    return myCar.getFrontXPos() + (Math.cos(degreesToRadians(myRotation + angleDiffDegrees)) * length);
   }
 
   private double finderEndY(double angleDiffDegrees, double length) {
-    return myY + (Math.sin(degreesToRadians(myRotation + angleDiffDegrees)) * length);
+    return myCar.getFrontYPos() + (Math.sin(degreesToRadians(myRotation + angleDiffDegrees)) * length);
   }
 
   private double degreesToRadians(double degrees) {

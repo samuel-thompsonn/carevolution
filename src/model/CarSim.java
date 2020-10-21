@@ -21,4 +21,10 @@ public interface CarSim {
   public void subscribe(SimulationListener listener);
 
   public void resetCars();
+
+  public void pressGasPedal(double amount);
+
+  public void turnWheel(double turnDegrees);
+
+  public void hitBrakes(double amount);
 }
