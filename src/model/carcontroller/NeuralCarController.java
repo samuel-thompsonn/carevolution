@@ -13,7 +13,7 @@ import java.util.Random;
 
 public class NeuralCarController implements CarController {
 
-  public static final int WHEEL_TURN_PER_SECOND = 240;
+  public static final int WHEEL_TURNS_PER_SECOND = 32;
   private List<double[][]> myWeights;
   private Car myCar;
   private double myScore;
@@ -28,7 +28,7 @@ public class NeuralCarController implements CarController {
   private NeuralCarController(Car car, List<double[][]> parentWeights) {
     myCar = car;
     myCar.subscribe(this);
-    myWeights = mutateWeights(parentWeights, 0.035);
+    myWeights = mutateWeights(parentWeights, 0.075);
   }
 
   private List<double[][]> mutateWeights(List<double[][]> parentWeights, double variationProportion) {
@@ -94,22 +94,15 @@ public class NeuralCarController implements CarController {
     readCarParams();
     double[] actions = calculateMovements(readCarParams());
     myCar.pressPedal((actions[0] * 2) - 1);
+//    myCar.pressPedal(0.5);
     //myCar.turnWheel(WHEEL_TURN_PER_SECOND * elapsedTime * (actions[1]-0.5));
 
     myCar.turnWheel(myCar.getWheelTurn() * -1);
-    myCar.turnWheel((actions[1]-0.5) * EvolutionCar.MAX_WHEEL_ROTATION * 55555);
-
-//    if (actions[1] > 0.5 && actions[2] <= 0.5) {
-//      myCar.turnWheel(-1000000);
-//      System.out.println("Neuron 1: active");
-//    }
-//    else if (actions[1] <= 0.5 && actions[2] > 0.5) {
-//      myCar.turnWheel(1000000);
-//      System.out.println("Neuron 2: active");
-//    }
-//    else {
-//      //System.out.printf("Neuron values: {%.02f, %.02f}\n",actions[1],actions[2]);
-//    }
+    double wheelTurn  = (actions[1] * 2 - 1) * EvolutionCar.MAX_WHEEL_ROTATION * 3;
+    myCar.turnWheel(wheelTurn);
+    myCar.pressBrakes((actions[2] * 2) - 1);
+//    myCar.turnWheel((actions[1]-0.5) * EvolutionCar.MAX_WHEEL_ROTATION * elapsedTime * WHEEL_TURNS_PER_SECOND);
+//    myCar.pressBrakes(actions[2]*2 - 1);
   }
 
   @Override
@@ -120,7 +113,7 @@ public class NeuralCarController implements CarController {
   private double[] readCarParams() {
     return new double[]{
             //myCar.getPedalPress(),
-            //myCar.getWheelTurn() / 120.0,
+//            myCar.getWheelTurn() / (EvolutionCar.MAX_WHEEL_ROTATION),
             myCar.getForwardDistance() / EvolutionCar.SENSOR_LENGTH,
             myCar.getLeftDistance() / EvolutionCar.SENSOR_LENGTH,
             myCar.getForwardLeftDistance() / EvolutionCar.SENSOR_LENGTH,

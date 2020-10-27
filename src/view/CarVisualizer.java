@@ -1,11 +1,13 @@
 package view;
 
+import javafx.collections.ObservableList;
 import javafx.scene.Parent;
 import javafx.scene.image.Image;
 import javafx.scene.image.ImageView;
 import javafx.scene.paint.Color;
 import javafx.scene.shape.Circle;
 import javafx.scene.shape.Line;
+import javafx.scene.shape.Polygon;
 import javafx.scene.shape.Rectangle;
 import model.CollisionEntity;
 import model.entity.Car;
@@ -23,14 +25,12 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
   public static final double MAX_ACCELERATION = 10;
   public static final double CAR_RADIUS = 10.0;
   public static final int SENSOR_LENGTH = 300;
-  public static final double CAR_LENGTH = 50+35;
-  public static final double CAR_WIDTH = 25+12.5;
   private double myX;
   private double myY;
   private double myRotation;
   private double myWheelRotation;
   private ImageView myCarImage;
-  private Rectangle myHitbox;
+  private Polygon myHitbox;
   private List<VisualizerListener> myListeners;
   private Car myCar;
   private Line myLeftFinder;
@@ -42,6 +42,9 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
   private Line myWheelRotateVisual;
   private Circle myCarFront;
   private Circle myCarBack;
+  private List<Circle> myPath;
+  private double myLength;
+  private double myWidth;
 
   private boolean showingFinders;
 
@@ -55,26 +58,42 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
       e.printStackTrace();
     }
     initFinders();
-    myCarImage.setFitWidth(CAR_LENGTH);
-    myCarImage.setFitHeight(CAR_WIDTH);
+    myLength = myCar.getLengthBetweenAxles() * 1.5;
+    myWidth = myCar.getAxleWidth() * 1.5;
+    myCarImage.setFitWidth(myLength);
+    myCarImage.setFitHeight(myWidth);
     getChildren().add(myCarImage);
-    myHitbox = new Rectangle(car.getCollisionX(),car.getCollisionY(), car.getCollisionWidth(),car.getCollisionHeight());
+    myHitbox = new Polygon();
     myHitbox.setFill(Color.color(1.0,0.0,0.0,0.3));
     getChildren().add(myHitbox);
+    refreshHitboxVisual();
     myWheelRotateVisual = new Line();
     myWheelRotateVisual.setStroke(Color.RED);
     getChildren().add(myWheelRotateVisual);
-    myCarFront = new Circle(CAR_WIDTH / 2.0);
+    myCarFront = new Circle(myWidth / 2.0);
     myCarFront.setFill(Color.color(0.0,1.0,0.0,0.3));
-    myCarBack = new Circle(CAR_WIDTH / 2.0);
+    myCarBack = new Circle(myWidth / 2.0);
     myCarBack.setFill(Color.color(0.0,1.0,0.0,0.3));
     getChildren().addAll(myCarFront,myCarBack);
+    myPath = new ArrayList<>();
 
     myListeners = new ArrayList<>();
 
     showingFinders = false;
     car.subscribe(this);
     setPosition(car.getXPos(),car.getYPos());
+  }
+
+  private void refreshHitboxVisual() {
+    List<double[]> hitboxPoints = myCar.getHitboxPoints();
+    List<Double> pointsAsDoubles = new ArrayList<>();
+    for (double[] point : hitboxPoints) {
+      pointsAsDoubles.add(point[0]);
+      pointsAsDoubles.add(point[1]);
+    }
+    ObservableList<Double> visualPoints = myHitbox.getPoints();
+    visualPoints.clear();
+    visualPoints.addAll(pointsAsDoubles);
   }
 
   private void initFinders() {
@@ -97,18 +116,35 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
     myY = yPos;
     double axleX = (myCar.getBackXPos() - myCar.getFrontXPos());
     double axleY = (myCar.getBackYPos() - myCar.getFrontYPos());
-    double middleX = ((myCar.getBackXPos() + myCar.getFrontXPos()) / 2) - CAR_LENGTH / 2;
-    double middleY = ((myCar.getBackYPos() + myCar.getFrontYPos()) / 2) - CAR_WIDTH / 2;
+    double middleX = ((myCar.getBackXPos() + myCar.getFrontXPos()) / 2) - myWidth / 2;
+    double middleY = ((myCar.getBackYPos() + myCar.getFrontYPos()) / 2) - myWidth / 2;
 //    myCarImage.setX(myCar.getBackXPos());
 //    myCarImage.setY(myCar.getBackYPos());
     myCarImage.setX(middleX);
     myCarImage.setY(middleY);
-    myHitbox.setX(xPos);
-    myHitbox.setY(yPos);
+    refreshHitboxVisual();
     myCarFront.setCenterX(myCar.getFrontXPos());
     myCarFront.setCenterY(myCar.getFrontYPos());
     myCarBack.setCenterX(myCar.getBackXPos());
     myCarBack.setCenterY(myCar.getBackYPos());
+    Circle trace = new Circle(5,Color.color(1.0,0.0,0.0,0.3));
+    trace.setCenterX(myCar.getBackXPos());
+    trace.setCenterY(myCar.getBackYPos());
+    Circle trace2 = new Circle(5,Color.color(1.0,0.0,0.0,0.3));
+    trace2.setCenterX(myCar.getFrontXPos());
+    trace2.setCenterY(myCar.getFrontYPos());
+    myPath.add(trace);
+    myPath.add(trace2);
+    getChildren().add(trace);
+    getChildren().add(trace2);
+    if (myPath.size() > 60) {
+      Circle removed = myPath.get(0);
+      Circle removed2 = myPath.get(1);
+      getChildren().remove(removed);
+      getChildren().remove(removed2);
+      myPath.remove(removed);
+      myPath.remove(removed2);
+    }
     refreshFinders();
   }
 
@@ -128,8 +164,8 @@ public class CarVisualizer extends Parent implements CarListener, EntityVisualiz
 
   private void refreshFinders() {
     for (Line finder : myFinderVisuals) {
-      finder.setStartX(myX);
-      finder.setStartY(myY);
+      finder.setStartX(myCar.getFrontXPos());
+      finder.setStartY(myCar.getFrontYPos());
     }
     myLeftFinder.setEndX(finderEndX(90,myCar.getLeftDistance()));
     myLeftFinder.setEndY(finderEndY(90,myCar.getLeftDistance()));

@@ -109,7 +109,7 @@ public class EvolutionVisualizer extends Parent implements VisualizerListener, S
         setFinderVisibility(false);
       }
     });
-    this.setOnMouseClicked(event -> mySimulation.placeObstacle(event.getSceneX(),event.getSceneY(),75,75));
+    this.setOnMouseClicked(event -> mySimulation.placeObstacle(event.getSceneX()-75/2.,event.getSceneY()-75/2.,75,75));
   }
 
   private void clearObstacles() {

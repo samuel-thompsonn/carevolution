@@ -12,4 +12,15 @@ public interface CollisionEntity {
   public double getCollisionHeight();
   public double getCollisionX();
   public double getCollisionY();
-  }
+
+  /**
+   *
+   * @return Any clockwise orientation of the hitbox points.
+   */
+  public List<double[]> getHitboxPoints();
+
+  /**
+   * Returns the top left and bottom right corner of the square bounding box for this entity.
+   */
+  public List<double[]> getHitboxRectPoints();
+}

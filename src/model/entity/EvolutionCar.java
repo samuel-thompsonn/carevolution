@@ -8,13 +8,13 @@ import java.util.ArrayList;
 import java.util.List;
 
 public class EvolutionCar implements Car {
-  public static final double MAX_WHEEL_ROTATION = 40;
-  public static final double FRICTION_FACTOR = 0.06;
+  public static final double MAX_WHEEL_ROTATION = 45;
+  public static final double FRICTION_FACTOR = 0.01;
   public static final double MAX_ACCELERATION = 20;
   public static final double CAR_RADIUS = 10.0;
   public static final int SENSOR_LENGTH = 300;
-  public static final int BETWEEN_AXLE_LENGTH = 50;
-  public static final int AXLE_WIDTH = 25;
+  public static final int BETWEEN_AXLE_LENGTH = 25;
+  public static final double AXLE_WIDTH = 12.5;
   public static final double TIRE_FRICTION_FACTOR = 0.1;
   private static final double BRAKE_STRENGTH = 0.05;
   private double myX;
@@ -42,9 +42,13 @@ public class EvolutionCar implements Car {
   private DistanceFinder myForwardRightFinder;
   private List<CarListener> myListeners;
   private List<CollisionEntityListener> myCollisionListeners;
+  private List<double[]> myHitboxPoints;
+  private List<double[]> myRectBoundPoints;
 
   public EvolutionCar(double x, double y) {
+    myHitboxPoints = new ArrayList<>();
     myDistanceFinders = new ArrayList<>();
+    myRectBoundPoints = new ArrayList<>();
     myForwardFinder = (new DistanceFinder(myX,myY, SENSOR_LENGTH,myXDirection,myYDirection));
     myLeftFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(90.0),delayedYDirection(90.0));
     myForwardLeftFinder = new DistanceFinder(myX,myY, SENSOR_LENGTH, delayedXDirection(45.0),delayedYDirection(45.0));
@@ -97,20 +101,16 @@ public class EvolutionCar implements Car {
     double backWheelDirection = degreesToRadians(myRotation);
     double frontWheelDirection = degreesToRadians(myWheelRotation + myRotation);
 
-    //Projection onto my direction of my velocity vector
-    double frontWheelDirX = Math.cos(frontWheelDirection);
-    double frontWheelDirY = Math.sin(frontWheelDirection);
-    double velocityProjectionDot = dotProduct2(myXVelocity,myYVelocity,frontWheelDirX,frontWheelDirY);
-    double velocityProjectionX = velocityProjectionDot * frontWheelDirX;
-    double velocityProjectionY = velocityProjectionDot * frontWheelDirY;
-    double normalVelocityX = myXVelocity - velocityProjectionX;
-    double normalVelocityY = myYVelocity - velocityProjectionY;
-    double decelerationX = normalVelocityX * -TIRE_FRICTION_FACTOR;
-    double decelerationY = normalVelocityY * -TIRE_FRICTION_FACTOR;
+//    //Projection onto my direction of my velocity vector
+    double normalVelocityX = getVectorNormalX(frontWheelDirection, myXVelocity, myYVelocity);
+    double normalVelocityY = getVectorNormalY(frontWheelDirection, myXVelocity,myYVelocity);
+    double wheelVelocityX = myXVelocity - normalVelocityX;
+    double wheelVelocityY = myYVelocity - normalVelocityY;
+    double decelerationX = (normalVelocityX + (wheelVelocityX * myBrakesPress)) * -TIRE_FRICTION_FACTOR;
+    double decelerationY = (normalVelocityY + (wheelVelocityY * myBrakesPress)) * -TIRE_FRICTION_FACTOR;
     //TODO: What if brake strength is strong enough to send the car backwards?
-    double frictionDecelerationX = -myXVelocity * (FRICTION_FACTOR + (myBrakesPress * BRAKE_STRENGTH));
-    double frictionDecelerationY = -myYVelocity * (FRICTION_FACTOR + (myBrakesPress * BRAKE_STRENGTH));
-
+    double frictionDecelerationX = -myXVelocity * (FRICTION_FACTOR);
+    double frictionDecelerationY = -myYVelocity * (FRICTION_FACTOR);
 
     //Have the halves of the vehicle pulled toward each other by a spring/bar
     //front - back
@@ -130,69 +130,46 @@ public class EvolutionCar implements Car {
     double backXFriction = myBackXVelocity * -FRICTION_FACTOR;
     double backYFriction = myBackYVelocity * -FRICTION_FACTOR;
 
-    //TODO: Add a pulling force that pulls the front to the back also.
+    double backVelocityNormalX = getVectorNormalX(backWheelDirection,myBackXVelocity,myBackYVelocity);
+    double backVelocityNormalY = getVectorNormalY(backWheelDirection,myBackXVelocity,myBackYVelocity);
+    double backVelocityWheelX = myBackXVelocity - backVelocityNormalX;
+    double backVelocityWheelY = myBackYVelocity - backVelocityNormalY;
+    double backDecelerationX = (backVelocityNormalX + (myBrakesPress * backVelocityWheelX)) * -TIRE_FRICTION_FACTOR;
+    double backDecelerationY = (backVelocityNormalY + (myBrakesPress * backVelocityWheelY)) * -TIRE_FRICTION_FACTOR;
+
     myXVelocity += decelerationX + frictionDecelerationX + (-0.5 * pullingForceX);
     myYVelocity += decelerationY + frictionDecelerationY + (-0.5 * pullingForceY);
 
     double accelerationX = Math.cos(backWheelDirection) * MAX_ACCELERATION * deltaTime * myPedalPress;
     double accelerationY = Math.sin(backWheelDirection) * MAX_ACCELERATION * deltaTime * myPedalPress;
-    myBackXVelocity += accelerationX + (0.5 * pullingForceX) + backXFriction;
-    myBackYVelocity += accelerationY + (0.5 * pullingForceY) + backYFriction;
+    myBackXVelocity += accelerationX + (0.5 * pullingForceX) + backXFriction + backDecelerationX;
+    myBackYVelocity += accelerationY + (0.5 * pullingForceY) + backYFriction + backDecelerationY;
     myBackX += myBackXVelocity;
     myBackY += myBackYVelocity;
     myFrontX += myXVelocity;
     myFrontY += myYVelocity;
-    backToFrontX = (backToFrontX / backToFrontDistance) * BETWEEN_AXLE_LENGTH;
-    backToFrontY = (backToFrontY / backToFrontDistance) * BETWEEN_AXLE_LENGTH;
-//    myBackX = myFrontX - backToFrontX;
-//    myBackY = myFrontY - backToFrontY;
+    mySpeed = Math.sqrt(Math.pow(myXVelocity,2) + Math.pow(myYVelocity,2));
 
     setPosition(myBackX,myBackY);
     setRotation((backToFrontAngle / (2 * Math.PI)) * 360);
 
-//    double wheelRadians = degreesToRadians(myWheelRotation + myRotation);
-//    double xComponent = Math.cos(wheelRadians);
-//    double yComponent = Math.sin(wheelRadians);
-//    double alignment = (dotProduct2(myXDirection, myYDirection,xComponent,yComponent));
-//    alignment *= 1 - myBrakesPress;
-//    System.out.println("alignment = " + alignment);
-//    System.out.println("myXVelocity = " + myXVelocity);
-//    System.out.println("myYVelocity = " + myYVelocity);
-//    System.out.println("mySpeed = " + mySpeed);
-//    double xVelDirection = myXVelocity / mySpeed;
-//    double yVelDirection = myYVelocity / mySpeed;
-//    if (mySpeed == 0) {
-//      xVelDirection = 0; yVelDirection = 0;
-//    }
-//    System.out.println("xVelDirection = " + xVelDirection);
-//    System.out.println("yVelDirection = " + yVelDirection);
-//    System.out.println("xComponent = " + xComponent);
-//    System.out.println("yComponent = " + yComponent);
-//    double velocityAlignment = dotProduct2(xVelDirection,yVelDirection,xComponent,yComponent);
-//    System.out.println("velocityAlignment = " + velocityAlignment);
-//
-//    double accelerationForward = (alignment * (myPedalPress * MAX_ACCELERATION)) - (mySpeed * FRICTION_FACTOR);
-//    //mySpeed += accelerationForward;
-//    //The velocity should be dampened based on the alignment to the wheels, since wheels are good friction surfaces
-//    // when you aren't moving in their direction of rotation
-//    double xAcceleration = (myPedalPress * MAX_ACCELERATION) * xComponent;
-//    double xDeceleration = (myXVelocity * FRICTION_FACTOR) + (myXVelocity * TIRE_FRICTION_FACTOR * (1-velocityAlignment));
-//    double yAcceleration = (myPedalPress * MAX_ACCELERATION) * yComponent;
-//    double yDeceleration = (myYVelocity * FRICTION_FACTOR) + (myYVelocity * TIRE_FRICTION_FACTOR * (1-velocityAlignment));
-//    myXVelocity += xAcceleration - xDeceleration;
-//    myYVelocity += yAcceleration - yDeceleration;
-//    mySpeed = Math.sqrt((myXVelocity * myXVelocity) + (myYVelocity  * myYVelocity));
-//
-//    //Our ACCELERATION, not SPEED, is modified by alignment.
-//    //double xChange = mySpeed * deltaTime * myXDirection;
-//    //double yChange = mySpeed * deltaTime * myYDirection;
-//    double xChange = myXVelocity * deltaTime;
-//    double yChange = myYVelocity * deltaTime;
-//    setPosition(myX + xChange, myY + yChange);
-//    double turnCircumference = (CAR_RADIUS *2*Math.PI);
-//    double angleChange = (deltaTime * mySpeed) / turnCircumference * myWheelRotation;
-//    setRotation(myRotation + angleChange);
     findDistances(obstacles);
+  }
+
+  private double getVectorNormalX(double directionRadians, double vectorX, double vectorY) {
+    double directionX = Math.cos(directionRadians);
+    double directionY = Math.sin(directionRadians);
+    double projectionDot = dotProduct2(vectorX,vectorY,directionX,directionY);
+    double projectionX = projectionDot * directionX;
+    return vectorX - projectionX;
+  }
+
+  private double getVectorNormalY(double directionRadians, double vectorX, double vectorY) {
+    double directionX = Math.cos(directionRadians);
+    double directionY = Math.sin(directionRadians);
+    double projectionDot = dotProduct2(vectorX,vectorY,directionX,directionY);
+    double projectionY = projectionDot * directionY;
+    return vectorY - projectionY;
   }
 
   @Override
@@ -227,6 +204,16 @@ public class EvolutionCar implements Car {
     return myY;
   }
 
+  @Override
+  public List<double[]> getHitboxPoints() {
+    return myHitboxPoints;
+  }
+
+  @Override
+  public List<double[]> getHitboxRectPoints() {
+    return myRectBoundPoints;
+  }
+
   public void givePoints(double points) {
     for (CarListener listener : myListeners) {
       listener.reactToPointGain(points);
@@ -244,11 +231,54 @@ public class EvolutionCar implements Car {
     myBackX = xPos;
     myBackY = yPos;
     for (DistanceFinder finder : myDistanceFinders) {
-      finder.setPosition(myX,myY);
+      finder.setPosition(myFrontX,myFrontY);
     }
     for (CarListener listener : myListeners) {
       listener.reactToPositionChange(myX,myY);
     }
+    myHitboxPoints = calcHitboxPoints();
+    myRectBoundPoints = calcRectBoundPoints();
+  }
+
+  private List<double[]> calcHitboxPoints() {
+    double rotationRadians = degreesToRadians(myRotation);
+    double rotationRadiansNormal = degreesToRadians(myRotation + 90);
+    double offsetForwardX = Math.cos(rotationRadians) * AXLE_WIDTH * 0.5;
+    double offsetForwardY = Math.sin(rotationRadians) * AXLE_WIDTH * 0.5;
+    double offsetLeftX = Math.cos(rotationRadiansNormal) * AXLE_WIDTH * 0.5;
+    double offsetLeftY = Math.sin(rotationRadiansNormal) * AXLE_WIDTH * 0.5;
+    double[] firstPoint = {
+            myFrontX + offsetLeftX + offsetForwardX,
+            myFrontY + offsetLeftY + offsetForwardY
+    };
+    double[] secondPoint = {
+            myFrontX - offsetLeftX + offsetForwardX,
+            myFrontY - offsetLeftY + offsetForwardY
+    };
+    double[] thirdPoint = {
+            myBackX - offsetLeftX - offsetForwardX,
+            myBackY - offsetLeftY - offsetForwardY
+    };
+    double[] fourthPoint = {
+            myBackX + offsetLeftX - offsetForwardX,
+            myBackY + offsetLeftY - offsetForwardY
+    };
+    return List.of(firstPoint,secondPoint,thirdPoint,fourthPoint);
+  }
+
+  private List<double[]> calcRectBoundPoints() {
+    List<double[]> points = myHitboxPoints;
+    List<double[]> boundPoints = new ArrayList<>();
+    double minX = 0, minY = 0, maxX = 0, maxY = 0;
+    for (double[] point : points) {
+      minX = Math.min(point[0],minX);
+      minY = Math.min(point[1],minY);
+      maxX = Math.max(point[0],maxX);
+      maxY = Math.max(point[1],maxY);
+    }
+    boundPoints.add(new double[]{minX,minY});
+    boundPoints.add(new double[]{maxX,maxY});
+    return boundPoints;
   }
 
   public double getPedalPress() {
@@ -280,7 +310,7 @@ public class EvolutionCar implements Car {
   }
 
   public double getSpeed() {
-    return mySpeed;
+    return Math.sqrt(Math.pow(myBackXVelocity,2)+Math.pow(myBackYVelocity,2));
   }
 
   public double getXPos() {
@@ -299,6 +329,16 @@ public class EvolutionCar implements Car {
     for (CarListener listener : myListeners) {
       listener.reactToRemoval(this);
     }
+  }
+
+  @Override
+  public double getLengthBetweenAxles() {
+    return BETWEEN_AXLE_LENGTH;
+  }
+
+  @Override
+  public double getAxleWidth() {
+    return AXLE_WIDTH;
   }
 
   public void setRotation(double degreeAmount) {

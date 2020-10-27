@@ -7,6 +7,7 @@ import javafx.scene.shape.Shape;
 import model.CollisionEntity;
 import model.CollisionEntityListener;
 
+import java.util.ArrayList;
 import java.util.List;
 
 
@@ -16,6 +17,7 @@ public class WallRegion extends Parent implements CollisionEntity {
   private double myY;
   private double myWidth;
   private double myHeight;
+  private List<double[]> myHitboxPoints;
 
   public WallRegion(double xPos, double yPos, double width, double height) {
     myRegion = new Rectangle(xPos,yPos,width,height);
@@ -25,6 +27,7 @@ public class WallRegion extends Parent implements CollisionEntity {
     myY = yPos;
     myWidth = width;
     myHeight = height;
+    myHitboxPoints = calcHitboxPoints();
   }
 
   public boolean pointInBounds(double xPos, double yPos) {
@@ -71,4 +74,36 @@ public class WallRegion extends Parent implements CollisionEntity {
   public double getCollisionY() {
     return myY;
   }
+
+  @Override
+  public List<double[]> getHitboxPoints() {
+    return myHitboxPoints;
+  }
+
+  @Override
+  public List<double[]> getHitboxRectPoints() {
+    List<double[]> boundPoints = new ArrayList<>(2);
+    boundPoints.add(new double[]{myX,myY});
+    boundPoints.add(new double[]{myX+myWidth,myY+myHeight});
+    return boundPoints;
+  }
+
+  private List<double[]> calcHitboxPoints() {
+    return List.of(
+            new double[] {
+                    myX,myY
+            },
+            new double[] {
+                    myX + myWidth, myY
+            },
+            new double[] {
+                    myX + myWidth, myY + myHeight
+            },
+            new double[] {
+                    myX, myY + myHeight
+            }
+    );
+  }
+
+
 }

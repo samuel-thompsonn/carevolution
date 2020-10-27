@@ -53,4 +53,8 @@ public interface Car extends CollisionEntity {
   public double getFrontYPos();
 
   public void destroy();
+
+  public double getLengthBetweenAxles();
+
+  public double getAxleWidth();
 }
